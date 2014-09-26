@@ -2,8 +2,6 @@
  * A module for a collection class of numbers that allows search by nearest
  * number.
  *
- * Disclaimer: Not sure if this is really the best way to implement this
- *
  * @module closecoll
  */
 (function(name, context, definition) { 
