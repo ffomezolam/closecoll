@@ -53,13 +53,13 @@
             }
             return coll;
         } else if(is('number', p)) {
-            thresh = thresh || 0.5;
+            thresh = !is('number', thresh) ? 0.5 : Math.abs(thresh);
             if(thresh > 0.5) thresh = 0.5;
             for(var i = 0, l = a.length; i < l; i++) {
                 var pt = a[i];
-                var l = i == 0 ? pt : pt - ((pt - a[i - 1]) * thresh);
-                var h = i >= l - 1 ? pt : pt + ((a[i + 1] - pt) * thresh);
-                if(p >= l && p <= h) return pt;
+                var low = i == 0 ? pt : pt - ((pt - a[i - 1]) * thresh);
+                var high = i >= l - 1 ? pt : (pt + ((a[i + 1] - pt) * thresh));
+                if(p >= low && p <= high) return pt;
             }
         }
 
@@ -97,7 +97,14 @@
      */
     CloseColl.prototype.has = function(p) {
         if(!arguments.length) return false;
-        return !!this.get(p, 0);
+
+        for(var i = 0, l = this.points.length; i < l; i++) {
+            var pt = this.points[i];
+            if(pt == p) return true;
+            if(pt > p) return false;
+        }
+
+        return false;
     };
 
     /**
