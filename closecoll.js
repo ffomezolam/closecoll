@@ -11,8 +11,11 @@
     else if(typeof define === 'function' && define.amd) define(definition);
     else context[name] = definition();
 })('CloseColl', this, function() {
-    function isArray(o) {
-        return Object.prototype.toString.call(o) === "[object Array]";
+    // utility function for determining data types
+    function is(t, o) {
+        t = t.toLowerCase();
+        var type = Object.prototype.toString.call(o).toLowerCase().slice(8, -1);
+        return type == t;
     }
 
     function numericSort(a, b) {
@@ -29,85 +32,98 @@
         this.points = [];
     }
 
-    CloseColl.prototype = {
-        /**
-         * Add a point to the collection
-         *
-         * @method add
-         * @chainable
-         * @param {Number|Array} p Point(s) to add to the collection
-         */
-        add: function(p) {
-            if(isArray(p)) {
-                for(var i = 0, l = p.length; i < l; i++) {
-                    this.add(p[i]);
-                }
-            } else if(arguments.length > 1) {
-                this.add(Array.prototype.slice.call(arguments));
-            } else if(typeof p == 'number') {
-                if(this.has(p)) return this;
-                this.points.push(p);
-                this.points.sort(numericSort);
+    /**
+     * Get point closest to given point in array of numbers
+     *
+     * @method nearest
+     * @static
+     * @param {Number|Array} p Point(s) to compare
+     * @param {Array} a Array of sorted numbers
+     * @param {Number} [thresh] Closeness threshold
+     * @param {Boolean} [sort] Whether to auto-sort array
+     * @return {Number|Array} Point(s) closest to argument(s)
+     */
+    CloseColl.nearest = function(p, a, thresh, sort) {
+        sort = is('undefined', sort) ? true : !!sort; // auto-sort by default
+        if(is('array', p)) {
+            var coll = [];
+            for(var i = 0, l = p.length; i < l; i++) {
+                var pt = p[i];
+                if(is('number', pt)) coll.push(CloseColl.nearest(pt, a, thresh, false));
             }
-            return this;
-        },
-
-        /**
-         * Check if a point exists in the collection
-         *
-         * @method has
-         * @param {Number} p Point to check for
-         * @return {Boolean} Whether point exists
-         */
-        has: function(p) {
-            if(!arguments.length) return false;
-            return !!this.get(p, 0);
-        },
-
-        /**
-         * Get the point closest to given point
-         *
-         * @method get
-         * @param {Number} p Point to compare
-         * @param {Number} [thresh] Comparison threshold (0-0.5)
-         * @return {Number} Point closest to argument
-         */
-        get: function(p, thresh) {
-            if(!arguments.length) return this.points;
-            if(isArray(p)) {
-                var collection = [];
-                for(var i = 0, l = p.length; i < l; i++) {
-                    var item = p[i];
-                    if(typeof item == 'number') {
-                        collection.push(this.get(item, thresh));
-                    }
-                }
-                return collection;
-            } else if(typeof p == 'number') {
-                thresh = thresh || 0;
-                if(thresh > 0.5) thresh = 0.5;
-                for(var i = 0, l = this.points.length; i < l; i++) {
-                    var point = this.points[i];
-                    var low = i <= 0 ? point : point - ((point - this.points[i - 1]) * thresh);
-                    var high = i >= l - 1 ? point : point + ((this.points[i + 1] - point) * thresh);
-                    if(p >= low && p <= high) return point;
-                }
+            return coll;
+        } else if(is('number', p)) {
+            thresh = thresh || 0.5;
+            if(thresh > 0.5) thresh = 0.5;
+            for(var i = 0, l = a.length; i < l; i++) {
+                var pt = a[i];
+                var l = i == 0 ? pt : pt - ((pt - a[i - 1]) * thresh);
+                var h = i >= l - 1 ? pt : pt + ((a[i + 1] - pt) * thresh);
+                if(p >= l && p <= h) return pt;
             }
-            return null;
-        },
-
-        /**
-         * Get the point at index
-         *
-         * @method index
-         * @param {Number} idx Index
-         * @return {Number} Point at index
-         */
-        index: function(idx) {
-            if(typeof idx != 'number') return this.points;
-            if(idx < 0 || idx >= this.points.length) return null;
-            return this.points[parseInt(idx)];
         }
+
+        return null;
+    };
+
+    /**
+     * Add a point to the collection
+     *
+     * @method add
+     * @chainable
+     * @param {Number|Array} p Point(s) to add to the collection
+     */
+    CloseColl.prototype.add = function(p) {
+        if(is('array', p)) {
+            for(var i = 0, l = p.length; i < l; i++) {
+                this.add(p[i]);
+            }
+        } else if(arguments.length > 1) {
+            this.add(Array.prototype.slice.call(arguments));
+        } else if(is('number', p)) {
+            if(this.has(p)) return this;
+            this.points.push(p);
+            this.points.sort(numericSort);
+        }
+        return this;
+    };
+
+    /**
+     * Check if a point exists in the collection
+     *
+     * @method has
+     * @param {Number} p Point to check for
+     * @return {Boolean} Whether point exists
+     */
+    CloseColl.prototype.has = function(p) {
+        if(!arguments.length) return false;
+        return !!this.get(p, 0);
+    };
+
+    /**
+     * Get the point closest to given point
+     *
+     * @method get
+     * @param {Number} p Point to compare
+     * @param {Number} [thresh] Comparison threshold (0-0.5)
+     * @return {Number} Point closest to argument
+     */
+    CloseColl.prototype.get = function(p, thresh) {
+        if(!arguments.length) return this.points;
+        return CloseColl.nearest(p, this.points, thresh, false);
+    };
+
+    /**
+     * Get the point at index
+     *
+     * @method index
+     * @param {Number} idx Index
+     * @return {Number} Point at index
+     */
+    CloseColl.prototype.index = function(idx) {
+        if(!is('number', idx)) return this.points;
+        if(idx < 0 || idx >= this.points.length) return null;
+        return this.points[parseInt(idx)];
     };
 
     return CloseColl;
