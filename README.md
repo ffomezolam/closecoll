@@ -1,9 +1,9 @@
 closecoll
 =========
 
-No idea
+Collection class allowing for fuzzy selection
 
 documentation
 -------------
 
-Coming soon
+See source or use yuidoc to generate documentation
